@@ -8,13 +8,13 @@ This document explains **how the whole project works**, step-by-step, for someon
 
 ---
 
-## 0. What this project does (1 paragraph)
+## 0. What this project does
 
 This firmware runs a **3‑phase BLDC motor** using **six-step commutation** (trapezoidal control) with **Hall sensors** for rotor position. The MCU reads DC bus voltage/current and Hall timing, computes a duty cycle (throttle) using PI controllers, and outputs PWM/commutation signals to the power stage. A state machine controls the high-level behavior (Init → Stop → Calib → Alignment → Run → Fault). Fault logic stops the motor and turns the RGB LED red.
 
 ---
 
-## 0.1 One-minute architecture view (for first-time readers)
+## 0.1 One-minute architecture view
 
 Think of the project as 5 linked blocks:
 
