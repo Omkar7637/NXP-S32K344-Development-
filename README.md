@@ -1,4 +1,4 @@
-# MCSPTE1AK344 BLDC 6‑Step (Hall) — Project Walkthrough (Beginner)
+# MCSPTE1AK344 BLDC 6‑Step (Hall) — Project Walkthrough
 
 This document explains **how the whole project works**, step-by-step, for someone who is new to the MCSPTE1AK344 kit and this codebase.
 
