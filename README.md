@@ -50,6 +50,11 @@ flowchart TD
     N --> F
 ```
 
+**Node legend (0.2 diagram):**
+- `A` reset/power-on, `B` peripheral init, `C` GD3000 init, `D` FreeMASTER+MCAT init, `E` timing chain enable
+- `F` main loop entry, `G` FMSTR poll, `H` state machine step, `I` LED update, `J` fault check
+- `K` GD3000 init decision, `L` GD3000 service path, `M` GD3000 retry path, `N` temperature read
+
 ### Detailed explanation (0.2 diagram)
 
 - **A -> B:** After reset, MCU enters `main()` and initializes core drivers (clock, pins, interrupts, comms, ADC/PWM stack).
@@ -137,6 +142,13 @@ flowchart TD
     S16 --> S17[Emios_Mcl_Ip_Init last]
     S17 --> S18[while loop forever]
 ```
+
+**Node legend (3.1 startup diagram):**
+- `S0` main entry, `S1` clock init, `S2` OSIF init, `S3` interrupt controller init
+- `S4` pin mux init, `S5` TRGMUX/ICU route, `S6` UART init, `S7` ADC init+calib
+- `S8` LCU/output init, `S9` LPSPI init, `S10` PIT init/start, `S11` GD3000 init
+- `S12` GD3000 ICU init, `S13` FreeMASTER init, `S14` MCAT init, `S15` eMIOS init
+- `S16` BCTU init, `S17` eMIOS MCL final start, `S18` enter endless runtime loop
 
 ### Detailed explanation (3.1 startup flowchart)
 
@@ -268,6 +280,14 @@ flowchart TD
     W16 --> W0
 ```
 
+**Node legend (5.1 main-loop diagram):**
+- `W0` loop start, `W1` FMSTR poll, `W2` GD3000 init-done check
+- `W3/W4/W5` retry counter/condition/retry init, `W6` continue runtime path
+- `W7` state machine call, `W8` LED update, `W9` fault check
+- `W10/W11/W12` GD3000 INT decision/read/skip
+- `W13/W14/W15` GD3000 clear decision/clear/skip
+- `W16` temperature update then back to `W0`
+
 ### Detailed explanation (5.1 main loop flowchart)
 
 - **W1:** Keeps host tool communication responsive (variables, tuning, recorder).
@@ -324,6 +344,10 @@ flowchart TD
     RUN -->|Any latched fault| FLT
     FLT -->|SW5+SW6 clear| I
 ```
+
+**Node legend (6.2 state diagram):**
+- `I` APP_INIT, `STP` APP_STOP, `CAL` APP_CALIB, `ALN` APP_ALIGNMENT
+- `STA` APP_START, `RUN` APP_RUN, `FLT` APP_FAULT
 
 ### Detailed explanation (6.2 state transition flowchart)
 
@@ -403,6 +427,12 @@ flowchart TD
     P10 --> P11[CheckSwitchState]
 ```
 
+**Node legend (7.2.1 speed-control diagram):**
+- `P0` PIT ISR entry, `P1` speed calculation, `P2` close-loop decision
+- `P3` current PI, `P4` speed limits, `P5` speed ramp+PI, `P6` arbitration decision
+- `P7` use speed PI output, `P8` use current-limit PI output
+- `P9` clamp duty, `P10` PWM update, `P11` button handling
+
 ### Detailed explanation (7.2.1 speed control flowchart)
 
 - **P1:** Rotor speed estimate comes from Hall timestamp periods.
@@ -450,6 +480,11 @@ sequenceDiagram
     SPI-->>MCU: Return rx byte/status
     MCU->>MCU: Update tppDrvConfig.statusRegister[]
 ```
+
+**Participant legend (7.5.2 sequence diagram):**
+- `MCU` = S32K344 firmware code
+- `SPI` = LPSPI1 peripheral/driver path
+- `GD` = GD3000 predriver IC
 
 ### Detailed explanation (7.5.2 communication sequence)
 
@@ -510,6 +545,15 @@ flowchart TD
     F8 -- yes --> F9[Set APP_FAULT, disable output path]
     F8 -- no --> F10[Normal operation]
 ```
+
+**Node legend (8.3 fault diagram):**
+- `F0` CheckFaults entry
+- `F1/F2/F3` overcurrent/overvoltage/undervoltage checks
+- `F4` GD3000-ready gate, `F5` GD3000 predriver fault check, `F6` skip GD3000 check
+- `F7` latch current faults
+- `F8` latched-fault decision
+- `F9` force FAULT state and disable outputs
+- `F10` normal operation
 
 ### Detailed explanation (8.3 fault decision flowchart)
 
