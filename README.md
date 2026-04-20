@@ -50,6 +50,16 @@ flowchart TD
     N --> F
 ```
 
+### Detailed explanation (0.2 diagram)
+
+- **A -> B:** After reset, MCU enters `main()` and initializes core drivers (clock, pins, interrupts, comms, ADC/PWM stack).
+- **B -> C:** The predriver is configured by SPI. This step is critical because PWM power-stage commands are unsafe without valid gate-driver setup.
+- **C -> D -> E:** Monitoring (FreeMASTER/MCAT) and timing chain (eMIOS/BCTU) are enabled so control data and triggers are live.
+- **E -> F:** Firmware transitions from one-time setup to continuous runtime loop.
+- **F -> G -> H -> I -> J:** Each loop iteration polls comms, executes current state logic, updates LED state, and evaluates faults.
+- **J -> K:** If GD3000 is ready, service driver status/clear paths; otherwise, retry bring-up in background.
+- **L/M -> N:** Loop ends with temperature housekeeping and restarts immediately.
+
 ---
 
 ## 1. Hardware blocks (what connects to what)
@@ -127,6 +137,18 @@ flowchart TD
     S16 --> S17[Emios_Mcl_Ip_Init last]
     S17 --> S18[while loop forever]
 ```
+
+### Detailed explanation (3.1 startup flowchart)
+
+- **S0-S3:** Platform baseline init: clock, OS abstraction, interrupt controller.
+- **S4:** Pin muxing binds each physical pin to GPIO, SPI, PWM, ICU, etc.
+- **S5:** Trigger routing ensures peripheral timing paths are connected correctly.
+- **S6-S7:** Communication and sensing come online; ADC calibration must succeed before using measurements.
+- **S8-S10:** Actuation and control timing foundations are prepared (LCU, SPI, PIT).
+- **S11-S12:** GD3000 initialization plus interrupt line setup for driver fault events.
+- **S13-S16:** Debug/tuning and runtime capture modules are initialized (FreeMASTER, MCAT, eMIOS ICU/PWM, BCTU).
+- **S17:** Final eMIOS MCL init starts timing chain in desired order.
+- **S18:** Firmware enters infinite loop where all runtime behavior happens.
 
 ---
 
@@ -246,6 +268,17 @@ flowchart TD
     W16 --> W0
 ```
 
+### Detailed explanation (5.1 main loop flowchart)
+
+- **W1:** Keeps host tool communication responsive (variables, tuning, recorder).
+- **W2-W5:** Non-blocking GD3000 recovery strategy. If init is not done, retries occur periodically, not in a hard startup stall.
+- **W7:** State machine runs exactly one state handler per loop (`INIT/STOP/CALIB/...`).
+- **W8:** LED output is tied directly to state so user sees system mode immediately.
+- **W9:** Protection logic runs every cycle and can force FAULT.
+- **W10-W11:** GD3000 interrupt flag triggers SPI status read.
+- **W13-W14:** Requested clear operations are sent to GD3000.
+- **W16:** Temperature value is refreshed; loop restarts.
+
 ---
 
 ## 6. Application state machine (what the user experiences)
@@ -291,6 +324,16 @@ flowchart TD
     RUN -->|Any latched fault| FLT
     FLT -->|SW5+SW6 clear| I
 ```
+
+### Detailed explanation (6.2 state transition flowchart)
+
+- **INIT -> STOP:** Always happens after software reset of control variables and PWM disable.
+- **STOP -> CALIB:** Requires user start request (`appSwitchState` set by button logic).
+- **CALIB -> ALIGN:** Triggered after current-offset calibration timer expires.
+- **ALIGN -> START -> RUN:** Alignment timer expires, then control transitions into active closed-loop run path.
+- **RUN -> INIT:** User stop command path sets flags that move system back to safe initialization.
+- **Any state -> FAULT:** Faults are latched globally; once latched, system is forced to FAULT.
+- **FAULT -> INIT:** Requires explicit user clear (SW5+SW6), then software clears latched faults and restarts sequence.
 
 ---
 
@@ -360,6 +403,16 @@ flowchart TD
     P10 --> P11[CheckSwitchState]
 ```
 
+### Detailed explanation (7.2.1 speed control flowchart)
+
+- **P1:** Rotor speed estimate comes from Hall timestamp periods.
+- **P2 branch:** If close-loop is disabled, controller skips PI math and only applies duty clamp/output.
+- **P3:** Current PI acts as torque/current limiter using DC bus current feedback.
+- **P4-P5:** Commanded speed is limited and ramped before speed PI computes demand.
+- **P6 arbitration:** Lower of speed demand and current-limit demand is selected, preventing overcurrent while tracking speed.
+- **P9-P10:** Duty is clamped to safe range and pushed to PWM hardware.
+- **P11:** Button handling runs in the same PIT path so operator commands are responsive.
+
 ### 7.3 eMIOS ICU notify (`eMIOS1IcuNotify`) — Hall timing
 
 Purpose: compute Hall period values from ICU timestamps.
@@ -397,6 +450,14 @@ sequenceDiagram
     SPI-->>MCU: Return rx byte/status
     MCU->>MCU: Update tppDrvConfig.statusRegister[]
 ```
+
+### Detailed explanation (7.5.2 communication sequence)
+
+- **MCU -> SPI:** Software prepares one command byte (command + subcommand/data nibble).
+- **SPI -> GD:** With CS active low, one byte is transmitted on MOSI.
+- **GD -> SPI:** GD3000 returns one byte on MISO for status/data feedback.
+- **SPI -> MCU:** SPI driver reports transfer status and received byte.
+- **MCU internal update:** Driver stores readback in software shadow registers and may trigger fault logic depending on bits.
 
 ---
 
@@ -449,6 +510,31 @@ flowchart TD
     F8 -- yes --> F9[Set APP_FAULT, disable output path]
     F8 -- no --> F10[Normal operation]
 ```
+
+### Detailed explanation (8.3 fault decision flowchart)
+
+- **F1-F3:** Electrical protections (overcurrent, overvoltage, undervoltage) are evaluated first every cycle.
+- **F4 gate:** Predriver fault check is executed only when GD3000 initialization is confirmed.
+- **F7:** Current-cycle faults are OR-latched into `faultStatusLatched` so transient events are not lost.
+- **F8 yes path:** Any latched bit forces FAULT state and disables actuation path.
+- **F8 no path:** System remains in normal state flow.
+
+---
+
+## 8.4 How to present these flowcharts to client/manager
+
+Use this sequence when presenting:
+
+1. **Start with 0.2** (full architecture/runtime picture).
+2. **Show 3.1** (deterministic startup order and safety bring-up).
+3. **Show 5.1** (continuous runtime behavior and retry/fault supervision).
+4. **Show 6.2 + 6.3** (user interaction and operational states).
+5. **Show 7.2.1** (control strategy for speed + current limiting).
+6. **Show 7.5.2** (MCU-predriver communication accountability).
+7. **Show 8.3** (why red LED and motor stop are intentional safety responses).
+
+Recommended closing sentence:
+"The firmware is designed so that control performance, operator commands, and safety interlocks run continuously together, with fault-latched behavior prioritizing hardware protection."
 
 ---
 
