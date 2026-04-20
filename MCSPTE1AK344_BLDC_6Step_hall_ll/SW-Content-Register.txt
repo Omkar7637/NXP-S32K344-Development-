@@ -1,0 +1,8 @@
+Release Name: MCSPTE1AK344: S32K344 Development Kit for BLDC and PMSM motor control
+=====================================================================
+MCSPTE1AK344: Motor control application     Version: 1.2 
+                                            Author: NXP
+                                            License: LA_OPT_NXP_Software_License v53 December 2023 
+                                            Content register: this file
+                                            Format: source code
+                                            Location: src, TPPSDK_GD3000_Driver, FreeMASTER, FreeMASTER_control
