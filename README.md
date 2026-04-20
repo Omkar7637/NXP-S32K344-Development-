@@ -565,23 +565,6 @@ flowchart TD
 
 ---
 
-## 8.4 How to present these flowcharts to client/manager
-
-Use this sequence when presenting:
-
-1. **Start with 0.2** (full architecture/runtime picture).
-2. **Show 3.1** (deterministic startup order and safety bring-up).
-3. **Show 5.1** (continuous runtime behavior and retry/fault supervision).
-4. **Show 6.2 + 6.3** (user interaction and operational states).
-5. **Show 7.2.1** (control strategy for speed + current limiting).
-6. **Show 7.5.2** (MCU-predriver communication accountability).
-7. **Show 8.3** (why red LED and motor stop are intentional safety responses).
-
-Recommended closing sentence:
-"The firmware is designed so that control performance, operator commands, and safety interlocks run continuously together, with fault-latched behavior prioritizing hardware protection."
-
----
-
 ## 9. Motor control behavior (what “six-step hall” means here)
 
 Six-step commutation energizes two phases at a time (one high, one low) according to rotor sector.
@@ -634,9 +617,7 @@ Typical things to adjust:
 
 ---
 
-## 11.1 Quick variable watch list for demo/review
-
-For manager/client presentation, keep these in debugger/FreeMASTER watch:
+## 11.1 Quick variable watch list for review
 
 - `appState` (current state)
 - `requiredSpeed`, `actualSpeed`, `duty_cycle`
